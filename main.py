@@ -10,6 +10,8 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtWidgets import *
+from sklearn.feature_extraction.text import CountVectorizer
+import pickle
 
 class quoraDialog(QtWidgets.QMainWindow):
 
@@ -29,9 +31,25 @@ class quoraDialog(QtWidgets.QMainWindow):
         self.CheckBtn.clicked.connect(self.runClassification)
         
     def runClassification(self):
-        self.classLabel.setText(self.methodOpt.textFromValue(self.methodOpt.value()))
+        method = self.methodOpt.textFromValue(self.methodOpt.value())
+        self.classLabel.setText(method)
         inputData = self.questionInput.toPlainText()
-        print(inputData)
+        if inputData == "":
+            self.questionInput.setPlainText("")
+            return
+        if method == 'Naive Bayes':
+            print("method")
+            loaded_vec = CountVectorizer(decode_error="replace",vocabulary=pickle.load(open("feature.pkl", "rb")))
+            vectorizedQuestion = loaded_vec.fit_transform(["how could black people dominate the wolrd"])
+            loaded_model = pickle.load(open('nbc.pickle', 'rb'))
+            anws = loaded_model.predict(vectorizedQuestion)
+            if anws[0] == 1:
+                self.classLabel.setText("Insincere")
+            else:
+                self.classLabel.setText("Sincere")
+        elif method == '':
+            pass
+        self.questionInput.setPlainText("")
 
     def showErrorPopup(self, error):
         msg = QtWidgets.QMessageBox()
