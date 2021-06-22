@@ -10,8 +10,11 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtWidgets import *
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 import pickle
+import torch
+import torch.nn as nn
+from ultis import *
 
 class quoraDialog(QtWidgets.QMainWindow):
 
@@ -38,17 +41,53 @@ class quoraDialog(QtWidgets.QMainWindow):
             self.questionInput.setPlainText("")
             return
         if method == 'Naive Bayes':
-            print("method")
-            loaded_vec = CountVectorizer(decode_error="replace",vocabulary=pickle.load(open("feature.pkl", "rb")))
-            vectorizedQuestion = loaded_vec.fit_transform(["how could black people dominate the wolrd"])
-            loaded_model = pickle.load(open('nbc.pickle', 'rb'))
+            print(method)
+            loaded_vec = CountVectorizer(decode_error="replace",vocabulary=pickle.load(open("models/feature.pkl", "rb")))
+            vectorizedQuestion = loaded_vec.fit_transform([str(inputData)])
+            loaded_model = pickle.load(open('models/nbc.pickle', 'rb'))
             anws = loaded_model.predict(vectorizedQuestion)
             if anws[0] == 1:
                 self.classLabel.setText("Insincere")
             else:
                 self.classLabel.setText("Sincere")
-        elif method == '':
-            pass
+        elif method == 'Logistic Regression':
+            loaded_vec = TfidfVectorizer(decode_error="replace",vocabulary=pickle.load(open("models/feature_tfidf.pkl", "rb")))
+            vectorizedQuestion = loaded_vec.fit_transform([str(inputData)])
+            loaded_model = pickle.load(open('models/lr_model.pkl', 'rb'))
+            anws = loaded_model.predict(vectorizedQuestion)
+            if anws[0] == 1:
+                self.classLabel.setText("Insincere")
+            else:
+                self.classLabel.setText("Sincere")
+        elif method == "SVM":
+            loaded_vec = TfidfVectorizer(decode_error="replace",vocabulary=pickle.load(open("models/feature_tfidf.pkl", "rb")))
+            vectorizedQuestion = loaded_vec.fit_transform([str(inputData)])
+            loaded_model = pickle.load(open('models/svm_model.pkl', 'rb'))
+            anws = loaded_model.predict(vectorizedQuestion)
+            if anws[0] == 1:
+                self.classLabel.setText("Insincere")
+            else:
+                self.classLabel.setText("Sincere")
+        else:
+            print(method)
+            model = BaseNet()
+            model.load_state_dict(torch.load("models/model_state_dict.pt", map_location=torch.device('cpu')))
+            model.eval()
+            s = preprocess(inputData)
+            with open('models/tokenizer.pickle', 'rb') as handle:
+              newTokenizer = pickle.load(handle)
+            ss = newTokenizer.texts_to_sequences([s])
+            # print(ss)
+            ss = pad_sequences(ss, maxlen=70)
+            # print(abc)
+            # "how could the black people dominate the world?"
+            inputModel = torch.tensor(ss, dtype = torch.long)
+            res = model(inputModel)
+            print(res)
+            if res.item() >= 0.3:
+                self.classLabel.setText("Insincere")
+            else:
+                self.classLabel.setText("Sincere")
         self.questionInput.setPlainText("")
 
     def showErrorPopup(self, error):
